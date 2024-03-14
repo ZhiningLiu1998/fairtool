@@ -1,8 +1,13 @@
 # Copyright (c) fairtool contributors.
 # Distributed under the terms of the MIT License.
+# Initially adapted from fairlearn (https://github.com/fairlearn/fairlearn)
+
+"""
+Utilities for fetching the UCI Adult dataset.
+"""
 
 # %%
-LOCAL_DEBUG = False
+LOCAL_DEBUG = True
 
 if not LOCAL_DEBUG:
     from ._base import _get_download_data_home
@@ -10,7 +15,7 @@ else:  # pragma: no cover
     # For local debugging purposes
     import sys
 
-    sys.path.append("../")
+    sys.path.append("..")
     from dataset._base import _get_download_data_home
 
 from sklearn.datasets import fetch_openml
@@ -55,9 +60,6 @@ def fetch_adult(*, cache=True, data_home=None, as_frame=True, return_X_y=False):
         The Bunch will contain a ``frame`` attribute with the target and the
         data. If ``return_X_y`` is True, then ``(data, target)`` will be pandas
         DataFrames or Series as describe above.
-
-        .. versionchanged:: 0.9.0
-            Default value changed to True.
 
     return_X_y : bool, default=False
         If True, returns ``(data.data, data.target)`` instead of a Bunch
