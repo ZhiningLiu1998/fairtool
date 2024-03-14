@@ -2,17 +2,19 @@
 # Distributed under the terms of the MIT License.
 
 # %%
-LOCAL_DEBUG = True
+LOCAL_DEBUG = False
 
 if not LOCAL_DEBUG:
     from ._base import _get_download_data_home
-else: # pragma: no cover
+else:  # pragma: no cover
     # For local debugging purposes
     import sys
-    sys.path.append('../')
+
+    sys.path.append("../")
     from dataset._base import _get_download_data_home
 
 from sklearn.datasets import fetch_openml
+
 
 def fetch_adult(*, cache=True, data_home=None, as_frame=True, return_X_y=False):
     """Load the UCI Adult dataset (binary classification).
@@ -103,6 +105,7 @@ def fetch_adult(*, cache=True, data_home=None, as_frame=True, return_X_y=False):
         return_X_y=return_X_y,
         parser="auto",
     )
+
 
 # %%
 

@@ -23,8 +23,8 @@ DESCRIPTION = "Toolbox for Fairness-aware Machine Learning."
 # Note: this will only work if 'README.md' is present in your MANIFEST.in file!
 here = os.path.abspath(os.path.dirname(__file__))
 try:
-    with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
-        LONG_DESCRIPTION = '\n' + f.read()
+    with io.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+        LONG_DESCRIPTION = "\n" + f.read()
 except FileNotFoundError:
     LONG_DESCRIPTION = DESCRIPTION
 
@@ -34,7 +34,7 @@ MAINTAINER = "Zhining Liu"
 MAINTAINER_EMAIL = "zhining.liu@outlook.com"
 URL = "https://github.com/ZhiningLiu1998/fairtool"
 PROJECT_URLS = {
-    'Source': 'https://github.com/ZhiningLiu1998/fairtool',
+    "Source": "https://github.com/ZhiningLiu1998/fairtool",
 }
 LICENSE = "MIT"
 CLASSIFIERS = [
@@ -89,7 +89,7 @@ setup(
     version=VERSION,
     project_urls=PROJECT_URLS,
     long_description=LONG_DESCRIPTION,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     zip_safe=False,  # the package can run out of an .egg file
     classifiers=CLASSIFIERS,
     packages=find_packages(),
