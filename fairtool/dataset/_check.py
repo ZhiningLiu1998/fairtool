@@ -1,7 +1,9 @@
+import warnings
+
 import numpy as np
 import pandas as pd
-from sklearn.utils.validation import column_or_1d
-from sklearn.utils.validation import check_is_fitted
+from sklearn.utils import check_X_y
+from sklearn.utils.validation import check_is_fitted, column_or_1d
 
 
 def check_sklearn_transformer_is_fitted(transformer, error_msg=None):
@@ -392,3 +394,64 @@ def check_feature_target_sensitive_names(
             f"Target attribute '{target_name}' should not be included in the feature names"
         )
     return
+
+
+def check_X_y_s(X, y, s, accept_non_numerical=False):
+    """Check if the input data and attributes are valid for binary classification.
+
+    Parameters
+    ----------
+    X : pandas DataFrame
+        The input data.
+
+    y : pandas Series
+        The target attribute values.
+
+    s : pandas Series
+        The sensitive attribute values.
+
+    accept_non_numerical : bool, default=False
+        Whether to accept non-numerical target and sensitive attribute values.
+        Default is False.
+
+    Returns
+    -------
+    X : pandas DataFrame
+        The validated input data.
+
+    y : pandas Series
+        The validated target attribute values.
+
+    s : pandas Series
+        The validated sensitive attribute values.
+    """
+    assert isinstance(X, pd.DataFrame), f"X must be a pandas DataFrame, got {type(X)}"
+    assert isinstance(y, pd.Series), f"y must be a pandas Series, got {type(y)}"
+    assert isinstance(s, pd.Series), f"s must be a pandas Series, got {type(s)}"
+    if y.name is None:
+        warnings.warn(
+            f"y is a pandas Series but does not have a name, "
+            f"it will be named as 'class' by default, "
+            f"consider setting y.name to avoid this warning"
+        )
+        y.name = "class"
+    if s.name is None:
+        raise ValueError(
+            f"Sensitive attribute `s` does not have a name. "
+            f"it must have a name in order to check whether it is "
+            f"included in X or conflicting with y. Explicitly set "
+            f"s.name to avoid this error."
+        )
+    # check validitiy of target and sensitive attributes and empty subgroups
+    check_target_and_sensitive_attr(y, s, accept_non_numerical=accept_non_numerical)
+    check_X_y(X, y)
+    check_X_y(X, s)
+    # y.name should not be in X.columns
+    assert (
+        y.name not in X.columns
+    ), f"y.name {y.name} is in X.columns, remove y from X to avoid this error"
+    # y.name should not be equal to s.name
+    assert (
+        s.name != y.name
+    ), f"s.name {s.name} is equal to y.name, change the name of s or y to avoid this error"
+    return X, y, s
