@@ -428,6 +428,16 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
     assert isinstance(X, pd.DataFrame), f"X must be a pandas DataFrame, got {type(X)}"
     assert isinstance(y, pd.Series), f"y must be a pandas Series, got {type(y)}"
     assert isinstance(s, pd.Series), f"s must be a pandas Series, got {type(s)}"
+    assert (
+        X.isna().sum().sum() == 0
+    ), f"X contains {X.isna().sum().sum()} missing values, remove/impute missing values to avoid this error"
+    assert (
+        y.isna().sum() == 0
+    ), f"y contains {y.isna().sum()} missing values, remove missing values to avoid this error"
+    assert (
+        s.isna().sum() == 0
+    ), f"s contains {s.isna().sum()} missing values, remove missing values to avoid this error"
+
     if y.name is None:
         warnings.warn(
             f"y is a pandas Series but does not have a name, "
