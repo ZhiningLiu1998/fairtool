@@ -1,3 +1,16 @@
+# %%
+
+LOCAL_DEBUG = True
+
+if not LOCAL_DEBUG:
+    from ..utils._validation_params import check_type
+else:  # pragma: no cover
+    # For local debugging purposes
+    import sys
+
+    sys.path.append("..")
+    from utils._validation_params import check_type
+
 import warnings
 
 import numpy as np
@@ -396,7 +409,9 @@ def check_feature_target_sensitive_names(
     return
 
 
-def check_X_y_s(X, y, s, accept_non_numerical=False):
+def check_X_y_s(
+    X, y, s, accept_non_pandas=True, accept_non_numerical=False, return_pandas=True
+):
     """Check if the input data and attributes are valid for binary classification.
 
     Parameters
@@ -410,9 +425,15 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
     s : array-like of shape (n_samples,)
         The sensitive attribute values.
 
+    accept_non_pandas : bool, default=True
+        Whether to accept non-pandas input data and attributes.
+
     accept_non_numerical : bool, default=False
         Whether to accept non-numerical target and sensitive attribute values.
         Default is False.
+
+    return_pandas : bool, default=True
+        Whether to return the input data and attributes as pandas DataFrame and Series.
 
     Returns
     -------
@@ -425,30 +446,45 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
     s : pandas Series
         The validated sensitive attribute values.
     """
-    if not isinstance(X, pd.DataFrame):
+    check_type(accept_non_pandas, "accept_non_pandas", bool)
+    check_type(accept_non_numerical, "accept_non_numerical", bool)
+    check_type(return_pandas, "return_pandas", bool)
+    if not isinstance(X, pd.DataFrame) and accept_non_pandas:
         try:
             X = pd.DataFrame(X)
         except Exception as e:
             raise ValueError(
-                f"X (a {type(X)}) is not a pandas DataFrame and cannot be converted to one. "
+                f"X ({type(X)}) is not a pandas DataFrame and cannot be converted to one. "
                 f"Make sure X is an array-like of shape (n_samples, n_features)."
             )
-    if not isinstance(y, pd.Series):
+    else:
+        raise ValueError(
+            f"X should be a pandas DataFrame when `accept_non_pandas` is False, got {type(X)}"
+        )
+    if not isinstance(y, pd.Series) and accept_non_pandas:
         try:
-            y = pd.Series(y, name='class')
+            y = pd.Series(y, name="class")
         except Exception as e:
             raise ValueError(
-                f"y (a {type(y)}) is not a pandas Series and cannot be converted to one. "
+                f"y ({type(y)}) is not a pandas Series and cannot be converted to one. "
                 f"Make sure y is an array-like of shape (n_samples,)."
             )
-    if not isinstance(s, pd.Series):
+    else:
+        raise ValueError(
+            f"y should be a pandas Series when `accept_non_pandas` is False, got {type(y)}"
+        )
+    if not isinstance(s, pd.Series) and accept_non_pandas:
         try:
-            s = pd.Series(s, name='sensitive')
+            s = pd.Series(s, name="sensitive")
         except Exception as e:
             raise ValueError(
-                f"s (a {type(s)}) is not a pandas Series and cannot be converted to one. "
+                f"s ({type(s)}) is not a pandas Series and cannot be converted to one. "
                 f"Make sure s is an array-like of shape (n_samples,)."
             )
+    else:
+        raise ValueError(
+            f"s should be a pandas Series when `accept_non_pandas` is False, got {type(s)}"
+        )
     assert (
         X.isna().sum().sum() == 0
     ), f"X contains {X.isna().sum().sum()} missing values, remove/impute missing values to avoid this error"
@@ -461,23 +497,39 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
 
     if y.name is None:
         warnings.warn(
-            f"y is a pandas Series but does not have a name, "
+            f"`y` is a pandas Series but does not have a name, "
             f"it will be named as 'class' by default, "
-            f"consider setting y.name to avoid this warning"
+            f"consider setting `y.name` to avoid this warning"
         )
-        y.name = 'class'
+        y.name = "class"
+        if X.columns.contains("class"):
+            raise ValueError(
+                f"Failed to set `y.name` to 'class', 'class' is already in `X.columns`. "
+                f"Explicitly set `y.name` to avoid this error."
+            )
     if s.name is None:
         warnings.warn(
-            f"y is a pandas Series but does not have a name, "
-            f"it will be named as 'class' by default, "
-            f"consider setting y.name to avoid this warning"
+            f"`s` is a pandas Series but does not have a name, "
+            f"trying to locate `s` in X and assign the column name to `s`, "
+            f"consider setting `s.name` to avoid this warning"
         )
-        raise ValueError(
-            f"Sensitive attribute `s` does not have a name. "
-            f"it must have a name in order to check whether it is "
-            f"included in X or conflicting with y. Explicitly set "
-            f"s.name to avoid this error."
-        )
+        s_col = check_s_in_X(X, s)
+        if s_col == False:
+            warnings.warn(
+                f"`s` is not found in `X`, it will be named as 'sensitive' by default, "
+            )
+            s.name = "sensitive"
+            if X.columns.contains("sensitive"):
+                raise ValueError(
+                    f"Failed to set `s.name` to 'sensitive', 'sensitive' is already in `X.columns`. "
+                    f"Explicitly set `s.name` to avoid this error."
+                )
+        else:
+            s.name = X.columns[s_col]
+            warnings.warn(
+                f"`s` is found in `X` at index {s_col}, assigning the column name {s.name} to `s`."
+            )
+
     # check validitiy of target and sensitive attributes and empty subgroups
     check_target_and_sensitive_attr(y, s, accept_non_numerical=accept_non_numerical)
     check_X_y(X, y)
@@ -490,4 +542,42 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
     assert (
         s.name != y.name
     ), f"s.name {s.name} is equal to y.name, change the name of s or y to avoid this error"
-    return X, y, s
+    if return_pandas:
+        return X, y, s
+    else:
+        return X.values, y.values, s.values
+
+
+def check_s_in_X(X, s):
+    """
+    Check if s is a column in X and return the index of the column if it is.
+    """
+    X, s = check_X_y(X, s)
+    # get all columns in X that are equal to s
+    candidates = [i for i in range(X.shape[1]) if np.all(X[:, i] == s)]
+    if len(candidates) == 0:
+        return False
+    elif len(candidates) > 1:
+        raise ValueError(
+            f"More than one column in X is equal to s: columns {candidates} "
+            f"are identical and all equal to s. Please check your data and "
+            f"remove redundant columns."
+        )
+    else:
+        return candidates[0]
+
+
+def remove_s_in_X(X, s, return_pandas=False):
+    """
+    Remove column s from X and return the resulting array or DataFrame.
+    """
+    col = check_s_in_X(X, s)
+    if col is False:
+        raise ValueError(
+            "Column s not found in X. Please check your data and make sure "
+            "that s is a column in X."
+        )
+    if return_pandas:
+        return pd.DataFrame(X).drop(X.columns[col], axis=1)
+    else:
+        return np.delete(X, col, axis=1)
