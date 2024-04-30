@@ -10,7 +10,6 @@ else:  # pragma: no cover
     import sys
 
     sys.path.append("..")
-    print(sys.path)
     from dataset._check import check_target_and_sensitive_attr, check_X_y_s
     from utils._validation_params import check_type
 
