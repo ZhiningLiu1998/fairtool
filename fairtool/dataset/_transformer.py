@@ -386,14 +386,13 @@ class FairDataTransformer:
         X, y, s = data[feature_names], data[target_name], data[sensitive_name]
 
         self.fit(
-            X,
-            y,
-            s,
-            categorical_features,
-            target_pos_value,
-            sensitive_pos_value,
-            return_pandas,
-            verbose,
+            X=X,
+            y=y,
+            s=s,
+            categorical_features=categorical_features,
+            target_pos_value=target_pos_value,
+            sensitive_pos_value=sensitive_pos_value,
+            verbose=verbose,
         )
         return self.transform(X, y, s, return_pandas)
 
@@ -1163,7 +1162,7 @@ class FairDataTransformer:
         try:
             y_ = self._target_encoder.transform(y.reshape(-1, 1)).ravel()
             if return_pandas:
-                return pd.Series(y_).astype("category")
+                return pd.Series(y_, name=self.target_name_).astype("int")
             else:
                 return y_
         except Exception as e:
@@ -1236,7 +1235,7 @@ class FairDataTransformer:
         try:
             y_ = self._target_encoder.inverse_transform(y.reshape(-1, 1)).ravel()
             if return_pandas:
-                return pd.Series(y_).astype("category")
+                return pd.Series(y_, name=self.target_name_).astype("category")
             else:
                 return y_
         except Exception as e:
@@ -1244,8 +1243,6 @@ class FairDataTransformer:
                 f"Failed to inverse transform target attribute with the provided "
                 f"data, make sure the data you provide is valid.\nError: {e}."
             )
-
-        return pd.Series(y).astype("category")
 
     def _fit_s(self, s_raw, y_encoded=None, pos_value=None, verbose=False):
         """Fit the sensitive attribute.
@@ -1363,7 +1360,7 @@ class FairDataTransformer:
         try:
             s_ = self._sensitive_encoder.transform(s.reshape(-1, 1)).ravel()
             if return_pandas:
-                return pd.Series(s_).astype("category")
+                return pd.Series(s_, name=self.sensitive_name_).astype("int")
             else:
                 return s_
         except Exception as e:
@@ -1445,7 +1442,7 @@ class FairDataTransformer:
         try:
             s_ = self._sensitive_encoder.inverse_transform(s.reshape(-1, 1)).ravel()
             if return_pandas:
-                return pd.Series(s_).astype("category")
+                return pd.Series(s_, name=self.sensitive_name_).astype("category")
             else:
                 return s_
         except Exception as e:
