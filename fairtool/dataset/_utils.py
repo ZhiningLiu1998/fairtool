@@ -1,8 +1,108 @@
-import pandas as pd
+# %%
+
+LOCAL_DEBUG = True
+
+if not LOCAL_DEBUG:
+    from ._check import check_target_and_sensitive_attr, check_X_y_s
+    from ..utils._validation_params import check_type
+else:  # pragma: no cover
+    # For local debugging purposes
+    import sys
+
+    sys.path.append("..")
+    print(sys.path)
+    from dataset._check import check_target_and_sensitive_attr, check_X_y_s
+    from utils._validation_params import check_type
+
+import warnings
+
 import numpy as np
-import sklearn
+import pandas as pd
+from pandas.api.types import CategoricalDtype, is_numeric_dtype
 from sklearn.impute._base import _BaseImputer
-from pandas.api.types import is_numeric_dtype, CategoricalDtype
+from sklearn.model_selection import train_test_split
+from sklearn.utils.validation import check_random_state
+
+# %%
+
+
+def train_val_test_split(
+    X,
+    y,
+    s,
+    *,
+    test_ratio,
+    val_ratio=0,
+    stratify_subgroup=True,
+    stratify=None,
+    random_state=None,
+):
+    """
+    Split the data into train, validation, and test sets.
+    """
+    check_X_y_s(X, y, s, accept_non_numerical=False)
+    check_type(test_ratio, "test_ratio", (int, float))
+    check_type(val_ratio, "val_ratio", (int, float))
+    assert (
+        1 > test_ratio >= 0
+    ), f"test_ratio must be in the range [0, 1), got {test_ratio}."
+    assert (
+        1 > val_ratio >= 0
+    ), f"val_ratio must be in the range [0, 1), got {val_ratio}."
+    assert (
+        val_ratio + test_ratio < 1
+    ), f"The sum of val_ratio (got {val_ratio}) and test_ratio (got {test_ratio}) must be less than 1."
+    check_type(stratify_subgroup, "stratify_subgroup", bool)
+    random_state = check_random_state(random_state)
+
+    if stratify_subgroup != True:
+        warnings.warn(
+            f"The stratify_subgroup parameter is set to False. This may lead "
+            f"to imbalanced subgroup (determined by y and s) distribution in the splits, "
+            f"some splits may have no samples from one or more subgroups. "
+            f"We recommend setting stratify_subgroup=True to ensure balanced subgroup distribution."
+        )
+
+    if stratify is not None:
+        warnings.warn(
+            f"You have passed a custom stratify array. This will override the automatic "
+            f"subgroup stratification based on the target (y) and sensitive attribute (s). "
+            f"This may lead to imbalanced subgroup distribution in the splits, and some "
+            f"splits may have no samples from one or more subgroups. Make sure you are "
+            f"aware of the consequences of this action."
+        )
+
+    # compute stratify array based on y and s
+    if stratify is None and stratify_subgroup == True:
+        stratify = np.zeros_like(y)
+        stratify = s * 2 + y
+
+    # do test split first
+    X_train, X_test, y_train, y_test, s_train, s_test, stratify, _ = train_test_split(
+        X,
+        y,
+        s,
+        stratify,
+        test_size=test_ratio,
+        stratify=stratify,
+        random_state=random_state,
+    )
+
+    if val_ratio > 0:
+        # then train/val split
+        X_train, X_val, y_train, y_val, s_train, s_val = train_test_split(
+            X_train,
+            y_train,
+            s_train,
+            test_size=val_ratio / (1 - test_ratio),
+            stratify=stratify,
+            random_state=random_state,
+        )
+        res = [X_train, X_val, X_test, y_train, y_val, y_test, s_train, s_val, s_test]
+    else:
+        res = [X_train, X_test, y_train, y_test, s_train, s_test]
+
+    return res
 
 
 def process_missing_values(data, how="drop", imputer=None):
@@ -260,3 +360,67 @@ def dict_inverse_collate(d):
             inv[v] = []
         inv[v].append(k)
     return inv
+
+
+def get_subgroup_population(y, s, return_pandas=True):
+    """
+    Get the population of each subgroup in the DataFrame.
+    """
+    check_target_and_sensitive_attr(y, s, accept_non_numerical=False)
+    p = np.zeros((2, 2), dtype=int)
+    for label in [0, 1]:
+        for mem in [0, 1]:
+            p[label, mem] = sum((y == label) & (s == mem))
+    if return_pandas:
+        p = pd.DataFrame(
+            p, columns=pd.Series([0, 1], name="s"), index=pd.Series([0, 1], name="y")
+        )
+    return p
+
+
+def get_group_stats(y, s):
+    """
+    Get the sub-group statistics for the target and sensitive attributes.
+    """
+    check_target_and_sensitive_attr(y, s, accept_non_numerical=False)
+    p = get_subgroup_population(y, s, return_pandas=True)
+    grp_stats = {
+        "y_group_size": p.sum(axis=1).to_dict(),
+        "y_group_ratio": (p.sum(axis=1) / p.sum().sum()).to_dict(),
+        "s_group_size": p.sum(axis=0).to_dict(),
+        "s_group_ratio": (p.sum(axis=0) / p.sum().sum()).to_dict(),
+        "y_s_group_ratio": {
+            y_label: {
+                s_label: p.loc[y_label, s_label] / p.loc[y_label].sum()
+                for s_label in [0, 1]
+            }
+            for y_label in [0, 1]
+        },
+        "s_y_group_ratio": {
+            s_label: {
+                y_label: p.loc[y_label, s_label] / p.loc[:, s_label].sum()
+                for y_label in [0, 1]
+            }
+            for s_label in [0, 1]
+        },
+        "y_group_pri_ratio": {
+            y_label: p.loc[y_label, 1] / p.loc[y_label].sum() for y_label in [0, 1]
+        },
+        "s_group_pos_ratio": {
+            s_label: p.loc[1, s_label] / p.loc[:, s_label].sum() for s_label in [0, 1]
+        },
+    }
+    return grp_stats
+
+
+def dict_values_to_percentage(d, decimals=2):
+    """
+    Convert the values in the dictionary to percentage.
+    """
+    d_new = {}
+    for k, v in d.items():
+        d_new[k] = f"{v:.{decimals}%}"
+    return d_new
+
+
+# %%

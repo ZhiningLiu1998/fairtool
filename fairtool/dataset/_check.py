@@ -401,13 +401,13 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
 
     Parameters
     ----------
-    X : pandas DataFrame
+    X : array-like of shape (n_samples, n_features)
         The input data.
 
-    y : pandas Series
+    y : array-like of shape (n_samples,)
         The target attribute values.
 
-    s : pandas Series
+    s : array-like of shape (n_samples,)
         The sensitive attribute values.
 
     accept_non_numerical : bool, default=False
@@ -425,9 +425,30 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
     s : pandas Series
         The validated sensitive attribute values.
     """
-    assert isinstance(X, pd.DataFrame), f"X must be a pandas DataFrame, got {type(X)}"
-    assert isinstance(y, pd.Series), f"y must be a pandas Series, got {type(y)}"
-    assert isinstance(s, pd.Series), f"s must be a pandas Series, got {type(s)}"
+    if not isinstance(X, pd.DataFrame):
+        try:
+            X = pd.DataFrame(X)
+        except Exception as e:
+            raise ValueError(
+                f"X (a {type(X)}) is not a pandas DataFrame and cannot be converted to one. "
+                f"Make sure X is an array-like of shape (n_samples, n_features)."
+            )
+    if not isinstance(y, pd.Series):
+        try:
+            y = pd.Series(y, name='class')
+        except Exception as e:
+            raise ValueError(
+                f"y (a {type(y)}) is not a pandas Series and cannot be converted to one. "
+                f"Make sure y is an array-like of shape (n_samples,)."
+            )
+    if not isinstance(s, pd.Series):
+        try:
+            s = pd.Series(s, name='sensitive')
+        except Exception as e:
+            raise ValueError(
+                f"s (a {type(s)}) is not a pandas Series and cannot be converted to one. "
+                f"Make sure s is an array-like of shape (n_samples,)."
+            )
     assert (
         X.isna().sum().sum() == 0
     ), f"X contains {X.isna().sum().sum()} missing values, remove/impute missing values to avoid this error"
@@ -444,8 +465,13 @@ def check_X_y_s(X, y, s, accept_non_numerical=False):
             f"it will be named as 'class' by default, "
             f"consider setting y.name to avoid this warning"
         )
-        y.name = "class"
+        y.name = 'class'
     if s.name is None:
+        warnings.warn(
+            f"y is a pandas Series but does not have a name, "
+            f"it will be named as 'class' by default, "
+            f"consider setting y.name to avoid this warning"
+        )
         raise ValueError(
             f"Sensitive attribute `s` does not have a name. "
             f"it must have a name in order to check whether it is "

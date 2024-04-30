@@ -7,14 +7,14 @@ LOCAL_DEBUG = True
 
 if not LOCAL_DEBUG:
     from ._check import *
-    from .utils import *
+    from ._utils import *
 else:  # pragma: no cover
     # For local debugging purposes
     import sys
 
     sys.path.append("..")
     from dataset._check import *
-    from dataset.utils import *
+    from dataset._utils import *
 
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder
 
