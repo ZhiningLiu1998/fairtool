@@ -449,42 +449,45 @@ def check_X_y_s(
     check_type(accept_non_pandas, "accept_non_pandas", bool)
     check_type(accept_non_numerical, "accept_non_numerical", bool)
     check_type(return_pandas, "return_pandas", bool)
-    if not isinstance(X, pd.DataFrame) and accept_non_pandas:
-        try:
-            X = pd.DataFrame(X)
-        except Exception as e:
+    if not isinstance(X, pd.DataFrame):
+        if accept_non_pandas:
+            try:
+                X = pd.DataFrame(X)
+            except Exception as e:
+                raise ValueError(
+                    f"X ({type(X)}) is not a pandas DataFrame and cannot be converted to one. "
+                    f"Make sure X is an array-like of shape (n_samples, n_features)."
+                )
+        else:
             raise ValueError(
-                f"X ({type(X)}) is not a pandas DataFrame and cannot be converted to one. "
-                f"Make sure X is an array-like of shape (n_samples, n_features)."
+                f"X should be a pandas DataFrame when `accept_non_pandas` is False, got {type(X)}"
             )
-    else:
-        raise ValueError(
-            f"X should be a pandas DataFrame when `accept_non_pandas` is False, got {type(X)}"
-        )
-    if not isinstance(y, pd.Series) and accept_non_pandas:
-        try:
-            y = pd.Series(y, name="class")
-        except Exception as e:
+    if not isinstance(y, pd.Series):
+        if accept_non_pandas:
+            try:
+                y = pd.Series(y, name="class")
+            except Exception as e:
+                raise ValueError(
+                    f"y ({type(y)}) is not a pandas Series and cannot be converted to one. "
+                    f"Make sure y is an array-like of shape (n_samples,)."
+                )
+        else:
             raise ValueError(
-                f"y ({type(y)}) is not a pandas Series and cannot be converted to one. "
-                f"Make sure y is an array-like of shape (n_samples,)."
+                f"y should be a pandas Series when `accept_non_pandas` is False, got {type(y)}"
             )
-    else:
-        raise ValueError(
-            f"y should be a pandas Series when `accept_non_pandas` is False, got {type(y)}"
-        )
-    if not isinstance(s, pd.Series) and accept_non_pandas:
-        try:
-            s = pd.Series(s, name="sensitive")
-        except Exception as e:
+    if not isinstance(s, pd.Series):
+        if accept_non_pandas:
+            try:
+                s = pd.Series(s, name="sensitive")
+            except Exception as e:
+                raise ValueError(
+                    f"s ({type(s)}) is not a pandas Series and cannot be converted to one. "
+                    f"Make sure s is an array-like of shape (n_samples,)."
+                )
+        else:
             raise ValueError(
-                f"s ({type(s)}) is not a pandas Series and cannot be converted to one. "
-                f"Make sure s is an array-like of shape (n_samples,)."
+                f"s should be a pandas Series when `accept_non_pandas` is False, got {type(s)}"
             )
-    else:
-        raise ValueError(
-            f"s should be a pandas Series when `accept_non_pandas` is False, got {type(s)}"
-        )
     assert (
         X.isna().sum().sum() == 0
     ), f"X contains {X.isna().sum().sum()} missing values, remove/impute missing values to avoid this error"

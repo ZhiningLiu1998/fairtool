@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import CategoricalDtype, is_numeric_dtype
 from sklearn.impute._base import _BaseImputer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.validation import check_random_state
 
 # %%
@@ -34,10 +34,68 @@ def train_val_test_split(
     val_ratio=0,
     stratify_subgroup=True,
     stratify=None,
+    return_indices=False,
     random_state=None,
 ):
     """
     Split the data into train, validation, and test sets.
+
+    Parameters
+    ----------
+    X : array-like or dataframe, shape (n_samples, n_features)
+        The input features.
+
+    y : array-like, shape (n_samples,)
+        The target variable.
+
+    s : array-like, shape (n_samples,)
+        The sensitive attribute.
+
+    test_ratio : float
+        The ratio of the test set size to the total dataset size.
+        Must be in the range [0, 1).
+
+    val_ratio : float, optional (default=0)
+        The ratio of the validation set size to the training set size.
+        Must be in the range [0, 1).
+
+    stratify_subgroup : bool, optional (default=True)
+        Whether to perform subgroup stratification based on the sensitive attribute and target variable.
+        If True, ensures balanced subgroup distribution across splits.
+
+    stratify : array-like, shape (n_samples,), optional (default=None)
+        An array indicating the groups for subgroup stratification.
+        If provided, overrides automatic subgroup stratification based on y and s.
+
+    return_indices : bool, optional (default=False)
+        Whether to return the indices of train, validation, and test sets instead of the actual splits.
+
+    random_state : int or RandomState instance, optional (default=None)
+        Controls the randomness of the split.
+
+    Returns
+    -------
+    splits : list, length=9 if `val_ratio` > 0, else length=6
+        A list containing the train, validation (if any), and test splits of inputs.
+        If `val_ratio`>0, return [X_train, X_val, X_test, y_train, y_val, y_test, s_train, s_val, s_test].
+        If `val_ratio`=0, return [X_train, X_test, y_train, y_test, s_train, s_test].
+
+    indices : list, length=3 if `val_ratio` > 0, else length=2
+        A list containing the indices of train, validation (if any), and test sets.
+        If `val_ratio`>0, return [train_index, val_index, test_index].
+        If `val_ratio`=0, return [train_index, test_index].
+
+    Raises
+    ------
+    AssertionError
+        If test_ratio or val_ratio is not in the range [0, 1).
+        If the sum of val_ratio and test_ratio is not less than 1.
+
+    Warnings
+    --------
+    UserWarning
+        If stratify_subgroup is set to False, which may lead to imbalanced subgroup distribution in the splits.
+        If a custom stratify array is passed, which overrides automatic subgroup stratification.
     """
     check_X_y_s(X, y, s, accept_non_numerical=False)
     check_type(test_ratio, "test_ratio", (int, float))
@@ -76,32 +134,39 @@ def train_val_test_split(
         stratify = np.zeros_like(y)
         stratify = s * 2 + y
 
-    # do test split first
-    X_train, X_test, y_train, y_test, s_train, s_test, stratify, _ = train_test_split(
-        X,
-        y,
-        s,
-        stratify,
+    sss_test = StratifiedShuffleSplit(
+        n_splits=1,
         test_size=test_ratio,
-        stratify=stratify,
         random_state=random_state,
     )
+    train_index, test_index = next(sss_test.split(X, stratify))
 
     if val_ratio > 0:
         # then train/val split
-        X_train, X_val, y_train, y_val, s_train, s_val = train_test_split(
-            X_train,
-            y_train,
-            s_train,
+        new_stratify = stratify[train_index].values
+        sss_val = StratifiedShuffleSplit(
+            n_splits=1,
             test_size=val_ratio / (1 - test_ratio),
-            stratify=stratify,
             random_state=random_state,
         )
-        res = [X_train, X_val, X_test, y_train, y_val, y_test, s_train, s_val, s_test]
+        train_index_, val_index_ = next(
+            sss_val.split(np.zeros_like(new_stratify), new_stratify)
+        )
+        # translate to true index
+        true_index = train_index.copy()
+        train_index, val_index = true_index[train_index_], true_index[val_index_]
+        indices = [train_index, val_index, test_index]
     else:
-        res = [X_train, X_test, y_train, y_test, s_train, s_test]
+        indices = [train_index, test_index]
 
-    return res
+    if return_indices:
+        return indices
+    else:
+        splits = []
+        for v in [X, y, s]:
+            for idx in indices:
+                splits.append(v.loc[v.index[idx]])
+        return splits
 
 
 def process_missing_values(data, how="drop", imputer=None):
