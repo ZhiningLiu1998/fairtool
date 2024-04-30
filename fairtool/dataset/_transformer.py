@@ -16,6 +16,7 @@ else:  # pragma: no cover
     from dataset._check import *
     from dataset._utils import *
 
+import sklearn
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder
 
 
