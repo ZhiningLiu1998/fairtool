@@ -96,6 +96,8 @@ class FairDataset(sklearn.utils.Bunch):
         self.target_name_ = self.transformer.target_name_
         self.sensitive_name_ = self.transformer.sensitive_name_
         self.data_raw_ = self.transformer.data_raw_
+        if verbose:
+            self.describe()
 
     def __repr__(self):
         return (
@@ -105,15 +107,15 @@ class FairDataset(sklearn.utils.Bunch):
         )
 
     @property
-    def X_raw(self):
+    def X_in_(self):
         return self.data_raw_[self.feature_names_in_]
 
     @property
-    def y_raw(self):
+    def y_in_(self):
         return self.data_raw_[self.target_name_]
 
     @property
-    def s_raw(self):
+    def s_in_(self):
         return self.data_raw_[self.sensitive_name_]
 
     @property
@@ -159,16 +161,16 @@ class FairDataset(sklearn.utils.Bunch):
             feat_info = ""
         info = (
             f"{center_str('FairDataset', fill_char='=')}\n"
-            f"# Samples:             {self.n_samples_}\n"
-            f"# Features Input:      {n_feat_in:<5d} (Numerical: {n_feat_in_num} | Categorical: {n_feat_in_cat})\n"
-            f"# Features Output:     {n_feat_out:<5d} (Numerical: {n_feat_out_num} | Categorical Encoded: {n_feat_out_cat})\n"
-            f"Target Attribute:      {self.target_name_.upper()} (0/1: negative/positive outcome)\n"
-            f"Target Mapping:        {target_encode_mapping}\n"
-            f"Target Distribution:   {grp_stats['y_group_size']}\n"
-            f"Sensitive Attribute:   {self.sensitive_name_.upper()} (0/1: protected/privileged group)\n"
-            f"Sensitive Mapping:     {sensitive_encode_mapping}\n"
-            f"Sensitive Distribution:{grp_stats['s_group_size']}\n"
-            f"Group Pos Label Ratio: {dict_values_to_percentage(grp_stats['s_group_pos_ratio'])}\n"
+            f"# Samples:              {self.n_samples_}\n"
+            f"# Features Input:       {n_feat_in:<5d} (Numerical: {n_feat_in_num} | Categorical: {n_feat_in_cat})\n"
+            f"# Features Output:      {n_feat_out:<5d} (Numerical: {n_feat_out_num} | Categorical Encoded: {n_feat_out_cat})\n"
+            f"Target Attribute:       {self.target_name_.upper()} (0/1: negative/positive outcome)\n"
+            f"Target Mapping:         {target_encode_mapping}\n"
+            f"Target Distribution:    {grp_stats['y_group_size']}\n"
+            f"Sensitive Attribute:    {self.sensitive_name_.upper()} (0/1: protected/privileged group)\n"
+            f"Sensitive Mapping:      {sensitive_encode_mapping}\n"
+            f"Sensitive Distribution: {grp_stats['s_group_size']}\n"
+            f"Group Pos Label Ratio:  {dict_values_to_percentage(grp_stats['s_group_pos_ratio'])}\n"
             f"{feat_info}"
             f"{center_str('', fill_char='=', padding=0)}"
         )
