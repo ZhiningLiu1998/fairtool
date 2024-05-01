@@ -4,14 +4,14 @@ LOCAL_DEBUG = True
 
 if not LOCAL_DEBUG:
     from ._check import check_target_and_sensitive_attr, check_X_y_s
-    from ..utils._validation_params import check_type
+    from ..utils._validation_params import check_type, check_1d_array
 else:  # pragma: no cover
     # For local debugging purposes
     import sys
 
     sys.path.append("..")
     from dataset._check import check_target_and_sensitive_attr, check_X_y_s
-    from utils._validation_params import check_type
+    from utils._validation_params import check_type, check_1d_array
 
 import warnings
 
@@ -191,17 +191,13 @@ def process_missing_values(data, how="drop", imputer=None):
     df : pd.DataFrame
         The DataFrame after processing missing values.
     """
-    assert isinstance(
-        data, pd.DataFrame
-    ), f"`data` should be a pandas DataFrame, got {type(data)} instead"
+    check_type(data, "data", pd.DataFrame)
     assert how in [
         "drop",
         "impute",
     ], f"`how` should be either 'drop' or 'impute', got {how} instead"
     if how == "impute":
-        assert isinstance(
-            imputer, _BaseImputer
-        ), f"`imputer` should be an sklearn imputer, got {type(imputer)} instead"
+        check_type(imputer, "imputer", _BaseImputer)
         df = pd.DataFrame(imputer.fit_transform(data), columns=data.columns)
     elif how == "drop":
         df = data.dropna()
@@ -230,13 +226,11 @@ def set_feature_dtypes(
     -------
 
     """
-    assert isinstance(
-        df, pd.DataFrame
-    ), f"`df` should be a pandas DataFrame, got {type(df)} instead"
+    check_type(df, "df", pd.DataFrame)
     if categorical_features is not None:
-        assert isinstance(
-            categorical_features, list
-        ), f"`categorical_features` should be a list, got {type(categorical_features)} instead"
+        check_1d_array(
+            categorical_features, "categorical_features", accept_non_numerical=True
+        )
         assert set(categorical_features).issubset(set(df.columns)), (
             f"All features in `categorical_features` should be present in the DataFrame, "
             f"got invalid feature name(s) in `categorical_features`: "
@@ -273,7 +267,7 @@ def set_feature_dtypes(
 
 def parse_feature_dtypes(
     df: pd.DataFrame,
-    feature_columns: list = None,
+    feature_names: list = None,
     dtype_as_key: bool = False,
     verbose: bool = False,
 ):
@@ -285,7 +279,7 @@ def parse_feature_dtypes(
     df : pd.DataFrame
         The DataFrame to parse the feature data types.
 
-    feature_columns : list, default=None
+    feature_names : list, default=None
         The list of feature columns to parse. If None, all columns in the DataFrame
         will be parsed.
 
@@ -297,36 +291,31 @@ def parse_feature_dtypes(
     feat_dtypes : dict
         A dictionary with keys as the feature names and values as the feature data types.
     """
-    assert isinstance(
-        df, pd.DataFrame
-    ), f"`df` should be a pandas DataFrame, got {type(df)} instead"
-    if feature_columns is not None:
-        assert isinstance(
-            feature_columns, list
-        ), f"`feature_columns` should be a list, got {type(feature_columns)} instead"
-        assert set(feature_columns).issubset(set(df.columns)), (
-            f"All features in `feature_columns` should be present in the DataFrame, "
-            f"got invalid feature name(s) in `feature_columns`: "
-            f"{set(feature_columns).difference(set(df.columns))}."
+    check_type(df, "df", pd.DataFrame)
+    check_type(verbose, "verbose", bool)
+    if feature_names is not None:
+        check_1d_array(feature_names, "feature_names", accept_non_numerical=True)
+        assert set(feature_names).issubset(set(df.columns)), (
+            f"All features in `feature_names` should be present in the DataFrame, "
+            f"got invalid feature name(s) in `feature_names`: "
+            f"{set(feature_names).difference(set(df.columns))}."
         )
-    assert isinstance(
-        verbose, bool
-    ), f"`verbose` should be a boolean, got {type(verbose)} instead"
 
     if verbose:
         print(
+            f"::func:: parse_feature_dtypes: \n"
             f"Parsing feature data types (numerical/categorical) from the DataFrame ..."
         )
 
     feat_dtypes = {}
-    columns = df.columns if feature_columns is None else feature_columns
+    columns = df.columns if feature_names is None else feature_names
     for column in columns:
         dtype = df[column].dtype
         if is_numeric_dtype(dtype):
             feat_dtypes[column] = "numerical"
         elif isinstance(dtype, CategoricalDtype):
             feat_dtypes[column] = "categorical"
-        else:
+        else:  # if not numerical or categorical, try to convert to categorical
             if verbose:
                 print(
                     f"Column '{column}' has dtype `{dtype}`. Trying to converting to categorical."
@@ -347,39 +336,32 @@ def parse_feature_dtypes(
 
 def parse_detailed_feature_dtypes(
     df: pd.DataFrame,
-    feature_columns: list = None,
+    feature_names: list = None,
     dtype_as_key: bool = False,
     verbose: bool = False,
 ):
     """
     Parse detailed feature data types for each column in the DataFrame.
     """
-    assert isinstance(
-        df, pd.DataFrame
-    ), f"`df` should be a pandas DataFrame, got {type(df)} instead"
-    if feature_columns is not None:
-        assert isinstance(
-            feature_columns, list
-        ), f"`feature_columns` should be a list, got {type(feature_columns)} instead"
-        assert set(feature_columns).issubset(set(df.columns)), (
-            f"All features in `feature_columns` should be present in the DataFrame, "
-            f"got invalid feature name(s) in `feature_columns`: "
-            f"{set(feature_columns).difference(set(df.columns))}."
+    check_type(df, "df", pd.DataFrame)
+    check_type(verbose, "verbose", bool)
+    check_type(dtype_as_key, "dtype_as_key", bool)
+    if feature_names is not None:
+        check_1d_array(feature_names, "feature_names", accept_non_numerical=True)
+        assert set(feature_names).issubset(set(df.columns)), (
+            f"All features in `feature_names` should be present in the DataFrame, "
+            f"got invalid feature name(s) in `feature_names`: "
+            f"{set(feature_names).difference(set(df.columns))}."
         )
-    assert isinstance(
-        verbose, bool
-    ), f"`verbose` should be a boolean, got {type(verbose)} instead"
-    assert isinstance(
-        dtype_as_key, bool
-    ), f"`dtype_as_key` should be a boolean, got {type(dtype_as_key)} instead"
 
     if verbose:
         print(
+            f"::func:: parse_detailed_feature_dtypes: \n"
             f"Parsing detailed feature data types (numerical/binary-/multi-categorical) from the DataFrame ..."
         )
 
     feat_dtypes = {}
-    columns = df.columns if feature_columns is None else feature_columns
+    columns = df.columns if feature_names is None else feature_names
     for column in columns:
         dtype = df[column].dtype
         if is_numeric_dtype(dtype):  # numerical

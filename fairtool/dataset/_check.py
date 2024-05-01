@@ -3,13 +3,13 @@
 LOCAL_DEBUG = True
 
 if not LOCAL_DEBUG:
-    from ..utils._validation_params import check_type
+    from ..utils._validation_params import check_type, check_1d_array
 else:  # pragma: no cover
     # For local debugging purposes
     import sys
 
     sys.path.append("..")
-    from utils._validation_params import check_type
+    from utils._validation_params import check_type, check_1d_array
 
 import warnings
 
@@ -219,9 +219,7 @@ def check_target_name(data, target_name, accept_non_numerical=False):
         If the target attribute values in the DataFrame contain missing values,
         are not binary, or are not numerical (if accept_non_numerical is False).
     """
-    assert isinstance(
-        data, pd.DataFrame
-    ), f"`data` should be a pandas DataFrame, got {type(data)} instead"
+    check_type(data, "data", pd.DataFrame)
     assert (
         target_name in data.columns
     ), f"`target_name` should be present in the DataFrame, got {target_name}"
@@ -256,9 +254,7 @@ def check_sensitive_name(data, sensitive_name, accept_non_numerical=False):
         If the sensitive attribute values in the DataFrame contain missing values,
         are not binary, or are not numerical (if accept_non_numerical is False).
     """
-    assert isinstance(
-        data, pd.DataFrame
-    ), f"`data` should be a pandas DataFrame, got {type(data)} instead"
+    check_type(data, "data", pd.DataFrame)
     assert (
         sensitive_name in data.columns
     ), f"`sensitive_name` should be present in the DataFrame, got {sensitive_name}"
@@ -297,12 +293,10 @@ def check_feature_names(data, feature_names, accept_non_numerical=False):
         are not numerical (if accept_non_numerical is False), or
         if any feature name contains '=' or '_'.
     """
-    assert isinstance(
-        data, pd.DataFrame
-    ), f"`data` should be a pandas DataFrame, got {type(data)} instead"
-    assert (
-        column_or_1d(feature_names, dtype=None, warn=False) is not None
-    ), f"`feature_names` should be a list of feature names, got {feature_names} instead"
+    check_type(data, "data", pd.DataFrame)
+    check_1d_array(
+        feature_names, "feature_names", accept_non_numerical=True, accept_empty=False
+    )
     assert all(
         [col in data.columns for col in feature_names]
     ), f"All feature names should be present in the DataFrame, got {feature_names}"

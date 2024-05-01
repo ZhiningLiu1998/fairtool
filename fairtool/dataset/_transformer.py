@@ -188,7 +188,7 @@ class FairDataTransformer:
 
         # parse the feature dtypes, keys are 'numerical', 'categorical-binary', 'categorical-multi'
         dtype_features = parse_detailed_feature_dtypes(
-            X, feature_columns=feature_names, dtype_as_key=True, verbose=verbose
+            X, feature_names=feature_names, dtype_as_key=True, verbose=verbose
         )
         # rearrange raw features in the order of numerical, binary categorical, and multi-categorical
         feature_names = (
